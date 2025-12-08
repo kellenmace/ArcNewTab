@@ -70,14 +70,6 @@ function show_command_bar(tabs) {
       vertical-align: baseline !important;
     `;
 
-    // Add Inter font with unique ID
-    const font_link = document.createElement("link");
-    font_link.id = "_x_extension_font_2024_unique_";
-    font_link.href =
-      "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap";
-    font_link.rel = "stylesheet";
-    document.head.appendChild(font_link);
-
     // Add style to hide scrollbars for WebKit browsers
     const scrollbar_style = document.createElement("style");
     scrollbar_style.id = "_x_extension_scrollbar_style_2024_unique_";
