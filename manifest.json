@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Arc Search",
+  "name": "Arc Command Bar",
   "version": "1.0.0",
-  "description": "Replaces the generic new tab page with a search engine similar to Arc.",
+  "description": "Replaces the generic new tab page with an Arc browser-style command bar.",
   "permissions": ["tabs", "history", "topSites", "activeTab"],
   "icons": {
     "16": "arc.png",

@@ -1,4 +1,4 @@
-# ArcNewTab
+# Arc Command Bar
 
 Key features:
 
