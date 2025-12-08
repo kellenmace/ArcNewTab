@@ -1,57 +1,49 @@
 chrome.commands.onCommand.addListener(function (command) {
-  if (command === "show-search") {
-    // Get all tabs in the current window
-    chrome.tabs.query({ currentWindow: true }, function (tabs) {
-      // Sanitize tabs to remove local network favicons that trigger permission warnings
-      const sanitizedTabs = tabs.map((tab) => {
-        if (tab.favIconUrl && isLocalNetworkUrl(tab.favIconUrl)) {
-          // Return a copy of the tab with the favicon removed
-          return { ...tab, favIconUrl: "" };
-        }
-        return tab;
-      });
-
-      // Get the current active tab and send message to content script
-      chrome.tabs.query(
-        { active: true, currentWindow: true },
-        function (activeTabs) {
-          const activeTab = activeTabs[0];
-          if (activeTab) {
-            // Skip restricted pages where content scripts cannot run
-            if (
-              !activeTab.url ||
-              activeTab.url.startsWith("chrome://") ||
-              activeTab.url.startsWith("edge://") ||
-              activeTab.url.startsWith("about:") ||
-              activeTab.url.startsWith("view-source:")
-            ) {
-              console.log("Cannot show search overlay on restricted pages.");
-              return;
-            }
-
-            // Send message to content script with tabs data
-            chrome.tabs.sendMessage(
-              activeTab.id,
-              {
-                action: "show-search",
-                tabs: sanitizedTabs,
-              },
-              () => {
-                // Catch error if content script is not loaded (e.g. after extension reload)
-                if (chrome.runtime.lastError) {
-                  console.log(
-                    "Could not connect to content script:",
-                    chrome.runtime.lastError.message
-                  );
-                }
-              }
-            );
-          }
-        }
-      );
-    });
+  if (command === "show-command-bar") {
+    showCommandBar();
   }
 });
+
+function showCommandBar() {
+  // Get all tabs in the current window
+  chrome.tabs.query({ currentWindow: true }, function (tabs) {
+    // Sanitize tabs to remove local network favicons that trigger permission warnings
+    const sanitizedTabs = tabs.map((tab) => {
+      if (tab.favIconUrl && isLocalNetworkUrl(tab.favIconUrl)) {
+        // Return a copy of the tab with the favicon removed
+        return { ...tab, favIconUrl: "" };
+      }
+      return tab;
+    });
+
+    // Get the current active tab and send message to content script
+    chrome.tabs.query(
+      { active: true, currentWindow: true },
+      function (activeTabs) {
+        const activeTab = activeTabs[0];
+        if (activeTab) {
+          // Send message to content script with tabs data
+          chrome.tabs.sendMessage(
+            activeTab.id,
+            {
+              action: "show-command-bar",
+              tabs: sanitizedTabs,
+            },
+            () => {
+              // Catch error if content script is not loaded (e.g. after extension reload)
+              if (chrome.runtime.lastError) {
+                console.error(
+                  "Could not connect to content script:",
+                  chrome.runtime.lastError.message
+                );
+              }
+            }
+          );
+        }
+      }
+    );
+  });
+}
 
 function isLocalNetworkUrl(url) {
   try {
@@ -73,12 +65,10 @@ function isLocalNetworkUrl(url) {
 
 // Listen for messages from content script to switch tabs
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-  if (request.action === "switchToTab") {
+  if (request.action === "switch-to-tab") {
     chrome.tabs.update(request.tabId, { active: true });
   } else if (request.action === "searchOrNavigate") {
     const query = request.query;
-
-    // Check if it's a URL - very simple and reliable
     const isUrl = query.includes(".") && !query.includes(" ");
 
     if (isUrl) {
@@ -108,74 +98,23 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 
 // Function to get search suggestions from history and top sites
 async function getSearchSuggestions(query) {
-  const suggestions = [];
-
   try {
-    // Get history items with broader search
+    const suggestions = [];
+
     const historyItems = await new Promise((resolve) => {
       chrome.history.search(
         {
           text: query,
-          maxResults: 50, // Increased to get more candidates
+          maxResults: 50,
           startTime: Date.now() - 30 * 24 * 60 * 60 * 1000, // Last 30 days
         },
         resolve
       );
     });
 
-    // Get top sites
     const topSites = await new Promise((resolve) => {
       chrome.topSites.get(resolve);
     });
-
-    // Helper function to calculate relevance score
-    function calculateRelevanceScore(item, query) {
-      const queryLower = query.toLowerCase();
-      const titleLower = item.title ? item.title.toLowerCase() : "";
-      const urlLower = item.url.toLowerCase();
-
-      let score = 0;
-
-      // Exact title match (highest priority)
-      if (titleLower === queryLower) score += 100;
-
-      // Title starts with query
-      if (titleLower.startsWith(queryLower)) score += 50;
-
-      // Query words in title
-      const queryWords = queryLower
-        .split(" ")
-        .filter((word) => word.length > 0);
-      queryWords.forEach((word) => {
-        if (titleLower.includes(word)) score += 20;
-      });
-
-      // Partial title match
-      if (titleLower.includes(queryLower)) score += 15;
-
-      // URL domain match
-      try {
-        const domain = new URL(item.url).hostname.toLowerCase();
-        if (domain.includes(queryLower)) score += 10;
-        if (domain.startsWith(queryLower)) score += 20;
-      } catch (e) {
-        // Invalid URL, skip domain scoring
-      }
-
-      // URL path match
-      if (urlLower.includes(queryLower)) score += 5;
-
-      // Recency bonus (for history items)
-      if (item.lastVisitTime) {
-        const daysSinceVisit =
-          (Date.now() - item.lastVisitTime) / (1000 * 60 * 60 * 24);
-        if (daysSinceVisit < 1) score += 10;
-        else if (daysSinceVisit < 7) score += 5;
-        else if (daysSinceVisit < 30) score += 2;
-      }
-
-      return score;
-    }
 
     // Process history items with scoring
     const processedUrls = new Set();
@@ -183,15 +122,7 @@ async function getSearchSuggestions(query) {
       if (item.title && !processedUrls.has(item.url)) {
         const score = calculateRelevanceScore(item, query);
         if (score > 0) {
-          // Get favicon URL using Google's favicon service (more reliable)
-          let faviconUrl = "";
-          try {
-            const urlObj = new URL(item.url);
-            faviconUrl = `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=16`;
-          } catch (e) {
-            // Fallback to direct favicon URL
-            faviconUrl = item.url + "/favicon.ico";
-          }
+          const faviconUrl = getFaviconUrl(item.url);
 
           suggestions.push({
             type: "history",
@@ -210,15 +141,7 @@ async function getSearchSuggestions(query) {
       if (site.title && !processedUrls.has(site.url)) {
         const score = calculateRelevanceScore(site, query);
         if (score > 0) {
-          // Get favicon URL using Google's favicon service (more reliable)
-          let faviconUrl = "";
-          try {
-            const urlObj = new URL(site.url);
-            faviconUrl = `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=16`;
-          } catch (e) {
-            // Fallback to direct favicon URL
-            faviconUrl = site.url + "/favicon.ico";
-          }
+          const faviconUrl = getFaviconUrl(site.url);
 
           suggestions.push({
             type: "topSite",
@@ -253,11 +176,67 @@ async function getSearchSuggestions(query) {
           )
       )
       .slice(0, 8);
-
-    console.log("Search suggestions:", finalSuggestions);
     return finalSuggestions;
   } catch (error) {
     console.error("Error getting search suggestions:", error);
     return [];
+  }
+}
+
+// Helper function to calculate relevance score
+function calculateRelevanceScore(item, query) {
+  const queryLower = query.toLowerCase();
+  const titleLower = item.title ? item.title.toLowerCase() : "";
+  const urlLower = item.url.toLowerCase();
+
+  let score = 0;
+
+  // Exact title match (highest priority)
+  if (titleLower === queryLower) score += 100;
+
+  // Title starts with query
+  if (titleLower.startsWith(queryLower)) score += 50;
+
+  // Query words in title
+  const queryWords = queryLower.split(" ").filter((word) => word.length > 0);
+  queryWords.forEach((word) => {
+    if (titleLower.includes(word)) score += 20;
+  });
+
+  // Partial title match
+  if (titleLower.includes(queryLower)) score += 15;
+
+  // URL domain match
+  try {
+    const domain = new URL(item.url).hostname.toLowerCase();
+    if (domain.includes(queryLower)) score += 10;
+    if (domain.startsWith(queryLower)) score += 20;
+  } catch (e) {
+    // Invalid URL, skip domain scoring
+  }
+
+  // URL path match
+  if (urlLower.includes(queryLower)) score += 5;
+
+  // Recency bonus (for history items)
+  if (item.lastVisitTime) {
+    const daysSinceVisit =
+      (Date.now() - item.lastVisitTime) / (1000 * 60 * 60 * 24);
+    if (daysSinceVisit < 1) score += 10;
+    else if (daysSinceVisit < 7) score += 5;
+    else if (daysSinceVisit < 30) score += 2;
+  }
+
+  return score;
+}
+
+function getFaviconUrl(pageUrl) {
+  try {
+    const urlObj = new URL(pageUrl);
+    // Get favicon URL using Google's favicon service (more reliable)
+    return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=16`;
+  } catch {
+    // Fallback to direct favicon URL
+    return pageUrl + "/favicon.ico";
   }
 }

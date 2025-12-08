@@ -1,11 +1,11 @@
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "show-search") {
-    toggleBlackRectangle(request.tabs);
+  if (request.action === "show-command-bar") {
+    showCommandBar(request.tabs);
   }
 });
 
-function toggleBlackRectangle(tabs) {
+function showCommandBar(tabs) {
   // Helper function to remove overlay and clean up styles
   function removeOverlay(overlayElement) {
     if (overlayElement) {
@@ -241,7 +241,7 @@ function toggleBlackRectangle(tabs) {
             if (selectedSuggestion.type === "tab") {
               // Switch to existing tab
               chrome.runtime.sendMessage({
-                action: "switchToTab",
+                action: "switch-to-tab",
                 tabId: selectedSuggestion.id,
               });
             } else {
@@ -534,7 +534,7 @@ function toggleBlackRectangle(tabs) {
           if (suggestion.type === "tab") {
             // Switch to existing tab
             chrome.runtime.sendMessage({
-              action: "switchToTab",
+              action: "switch-to-tab",
               tabId: suggestion.id,
             });
           } else {
@@ -555,7 +555,7 @@ function toggleBlackRectangle(tabs) {
           if (suggestion.type === "tab") {
             // Switch to existing tab
             chrome.runtime.sendMessage({
-              action: "switchToTab",
+              action: "switch-to-tab",
               tabId: suggestion.id,
             });
           } else {
@@ -729,7 +729,7 @@ function toggleBlackRectangle(tabs) {
         switchButton.addEventListener("click", function (e) {
           e.stopPropagation();
           chrome.runtime.sendMessage({
-            action: "switchToTab",
+            action: "switch-to-tab",
             tabId: tab.id,
           });
           removeOverlay(overlay);
@@ -740,7 +740,7 @@ function toggleBlackRectangle(tabs) {
         // Add click handler to select item
         suggestionItem.addEventListener("click", function () {
           chrome.runtime.sendMessage({
-            action: "switchToTab",
+            action: "switch-to-tab",
             tabId: tab.id,
           });
           removeOverlay(overlay);
@@ -934,7 +934,7 @@ function toggleBlackRectangle(tabs) {
       switchButton.addEventListener("click", function (e) {
         e.stopPropagation();
         chrome.runtime.sendMessage({
-          action: "switchToTab",
+          action: "switch-to-tab",
           tabId: tab.id,
         });
         removeOverlay(overlay);
@@ -944,7 +944,7 @@ function toggleBlackRectangle(tabs) {
       // Add click handler to select item
       suggestionItem.addEventListener("click", function () {
         chrome.runtime.sendMessage({
-          action: "switchToTab",
+          action: "switch-to-tab",
           tabId: tab.id,
         });
         removeOverlay(overlay);

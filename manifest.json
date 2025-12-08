@@ -19,7 +19,7 @@
     }
   ],
   "commands": {
-    "show-search": {
+    "show-command-bar": {
       "suggested_key": {
         "default": "Ctrl+T",
         "mac": "Command+T"
