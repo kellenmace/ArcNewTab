@@ -3,23 +3,21 @@
   "name": "Arc Search",
   "version": "1.0.0",
   "description": "Replaces the generic new tab page with a search engine similar to Arc.",
-  "permissions": [
-    "scripting",
-    "tabs",
-    "history",
-    "topSites"
-  ],
+  "permissions": ["tabs", "history", "topSites", "activeTab"],
   "icons": {
     "16": "arc.png",
     "48": "arc.png",
     "128": "arc.png"
   },
-  "host_permissions": [
-    "<all_urls>"
-  ],
   "background": {
     "service_worker": "background.js"
   },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
   "commands": {
     "show-search": {
       "suggested_key": {
