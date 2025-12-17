@@ -276,6 +276,8 @@ function show_command_bar(tabs) {
           if (button) {
             button.style.setProperty("color", "white", "important");
           }
+          // Scroll the item into view
+          item.scrollIntoView({ block: "nearest" });
         } else {
           // Reset to default background
           item.style.setProperty("background-color", "#1A1A1A", "important");
